@@ -28,7 +28,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install --upgrade platformio
     - name: Run PlatformIO
-      run: pio run -e d1mini
+      run: pio run -e d1mini -e d1 -e megaatmega2560 -e ATmega328P
     - uses: actions/upload-artifact@v2
       with:
         name: d1mini
