@@ -29,3 +29,7 @@ jobs:
         pip install --upgrade platformio
     - name: Run PlatformIO
       run: pio run -e d1mini
+    - uses: actions/upload-artifact@v2
+      with:
+        name: d1mini
+        path: .pio/build/d1mini/firmware.bin
