@@ -2,36 +2,54 @@
 #include "HX711.h"
 #include <EEPROM.h>
 #include <Servo.h>
+
+//Расскомендировать если компилируется через arduino ide и нужен wifi
+//#define USE_WIFI 1
+//#define ESP8266 1
+
+#ifdef USE_WIFI
 #include <ESP8266WiFi.h>
 #include <ArduinoOTA.h>
-
-#include <Ticker.h>
+#endif
 
 #define VERSION "0.0.1"
-#define EEPROM_START 0
+#define STRING_DELIMITER F(";")
+const uint8_t MAX_REQUEST_LEN = 20;
 #define STA_SSID_DEFAULT "CLIENTSSID"
 #define STA_PASSWORD_DEFAULT "WiFinetKEY"
-#define STRING_DELIMITER F(";")
-#define MAX_REQUEST_LEN 20
-#define DEFAULT_CALIBRATE_FACTOR 1
+
 
 Stream *responseTo = &Serial;
 
 // Scale Settings
-#define MEASURE_START 1
-#define MEASURE_WAIT 0
-const int LOADCELL_DOUT_PIN = D3;
-const int LOADCELL_SCK_PIN = D4;
-float     conversion_rate    = 0.035274;                      // указываем коэффициент для перевода из унций в граммы
+const uint8_t DEFAULT_CALIBRATE_FACTOR = 1;
+#ifdef MEGA2560
+const uint8_t LOADCELL_DOUT_PIN = DD3;
+const uint8_t LOADCELL_SCK_PIN = DD4;
+#else
+const uint8_t LOADCELL_DOUT_PIN = D3;
+const uint8_t LOADCELL_SCK_PIN = D4;
+#endif
+
+const float conversionRate = 0.035274;
 HX711 scale;
+unsigned long measureTimerStart = 0;
+const uint16_t measureDelay = 500;
 
 //ESC settings
-#define MIN_THROTTLE 1000
-#define MAX_THROTTLE 2000
-#define SPEED_PIN D1
-const int ESC_PIN = D2;
-Ticker measureTick;
-byte measureState = MEASURE_WAIT;
+const uint16_t MIN_THROTTLE = 1000;
+const uint16_t MAX_THROTTLE = 2000;
+#ifdef MEGA2560
+const uint8_t SPEED_PIN = DD1;
+const uint8_t ESC_PIN = DD2;
+#else
+const uint8_t SPEED_PIN = D1;
+const uint8_t ESC_PIN = D2;
+#endif
+
+const byte measureStart = 1;
+const byte measureWait = 0;
+byte measureState = measureWait;
 uint8_t throttle = 0;
 Servo ESC;
 
@@ -40,11 +58,13 @@ unsigned long rmpTimerStart = 0;
 volatile uint16_t countTicks = 0;
 uint16_t rpm = 0;
 
+#ifdef USE_WIFI
 //WIFI settings
 WiFiServer wifiServer(80);
-
+#endif
 
 //EEPROM settings
+const uint8_t EEPROM_START = 0;
 uint32_t memcrc; 
 uint8_t *p_memcrc = (uint8_t*)&memcrc;
 
@@ -56,8 +76,11 @@ struct eeprom_data_t {
   char STApass[17];
 } eeprom_data;
 
+#ifdef ESP8266
 static PROGMEM uint32_t crc_table[16] = {
-// static  prog_uint32_t crc_table[16] = {
+#else  
+static  uint32_t crc_table[16] = {
+#endif
   0x00000000, 0x1db71064, 0x3b6e20c8, 0x26d930ac, 0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
   0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c, 0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c
 };
@@ -89,11 +112,15 @@ unsigned long crc_byte(byte *b, int len)
 // ----------------------------------- readSettingsESP -----------------------------------
 void readSettingsESP()
 {
-  int i;
+  uint16_t i;
   uint32_t datacrc;
   byte eeprom_data_tmp[sizeof(eeprom_data)];
 
-  EEPROM.begin(sizeof(eeprom_data) + sizeof(memcrc));
+  EEPROM.begin(
+    #ifdef ESP8266
+    sizeof(eeprom_data) + sizeof(memcrc)
+    #endif
+    );
 
   for (i = EEPROM_START; i < EEPROM_START+sizeof(eeprom_data); i++)
   {
@@ -124,10 +151,14 @@ void readSettingsESP()
 // ----------------------------------- writeSettingsESP -----------------------------------
 void writeSettingsESP()
 {
-  int i;
+  uint16_t i;
   byte eeprom_data_tmp[sizeof(eeprom_data)];
 
-  EEPROM.begin(sizeof(eeprom_data) + sizeof(memcrc));
+  EEPROM.begin(
+    #ifdef ESP8266
+    sizeof(eeprom_data) + sizeof(memcrc)
+    #endif
+    );
 
   memcpy(eeprom_data_tmp, &eeprom_data, sizeof(eeprom_data));
 
@@ -143,14 +174,16 @@ void writeSettingsESP()
   EEPROM.write(i++, p_memcrc[2]);
   EEPROM.write(i++, p_memcrc[3]);
 
+  #ifdef ESP8266
   EEPROM.commit();
+  #endif
 }
 
 char *getRequestPayload(char *data)
 {
   char *value = new char[MAX_REQUEST_LEN]{'\0'};
   uint8_t pos = 0;
-  for (size_t i = 0; i < MAX_REQUEST_LEN; i++)
+  for (uint8_t i = 0; i < MAX_REQUEST_LEN; i++)
   {
     if (data[i] == ';') {
       pos = i+1;
@@ -161,7 +194,7 @@ char *getRequestPayload(char *data)
     return value;
   }
   
-  for (size_t i = pos; i < MAX_REQUEST_LEN; i++)
+  for (uint8_t i = pos; i < MAX_REQUEST_LEN; i++)
   {
     value[i-pos] = data[i];
   }
@@ -178,7 +211,7 @@ void clearScale()
 void sendGramms()
 {
   float units = scale.get_units();       
-  float grams = units * conversion_rate;
+  float grams = units * conversionRate;
 
   String response = "$17;";
   response += grams;
@@ -192,7 +225,7 @@ void calibrate(char *data)
   delete value;
   
   scale.set_scale();
-  float calibration_factor = scale.get_units(1) / (controlWeight / conversion_rate);
+  float calibration_factor = scale.get_units(1) / (controlWeight / conversionRate);
   scale.set_scale(calibration_factor);
   
   String response = "$16;";
@@ -227,29 +260,38 @@ void sendSettings()
 void sendIp()
 {
   String response = F("$8;");
-    
+
+#ifdef USE_WIFI    
   if (WiFi.status() == WL_CONNECTED) {
     response += WiFi.localIP().toString();
   }
-
+#endif
   responseTo->println(response);
 }
 
 void getMeasure()
 {
-  float units = scale.get_units();       
-  float grams = units * conversion_rate;   
-  String response = F("$3;");                            
-  response += grams;
-  response += STRING_DELIMITER;
-  response += throttle;
-  response += STRING_DELIMITER;
-  response += rpm;
-  responseTo->println(response);
+  if (measureState == measureWait) {
+    return;
+  }
+
+  if (millis() - measureTimerStart >= measureDelay) {
+    float units = scale.get_units();       
+    float grams = units * conversionRate;   
+    String response = F("$3;");                            
+    response += grams;
+    response += STRING_DELIMITER;
+    response += throttle;
+    response += STRING_DELIMITER;
+    response += rpm;
+    responseTo->println(response);
+    measureTimerStart = millis();
+  }
 }
 
 void firmwareUpdate() 
 {
+  #ifdef USE_WIFI
   ArduinoOTA.onStart([]() {
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH)
@@ -275,6 +317,7 @@ void firmwareUpdate()
     else if (error == OTA_END_ERROR) Serial.println("End Failed");
   });
   ArduinoOTA.begin();
+  #endif
 }
 
 bool checkCommand(char *data, char *command)
@@ -285,7 +328,7 @@ bool checkCommand(char *data, char *command)
 
   char requestCommand[MAX_REQUEST_LEN]{'\0'};
 
-  for (size_t i = 1; i < MAX_REQUEST_LEN; i++)
+  for (uint8_t i = 1; i < MAX_REQUEST_LEN; i++)
   {
     if (data[i] == ';') {
       break;
@@ -351,14 +394,17 @@ void setMeasureCorrection(char *data)
   delete value;
 }
 
-IRAM_ATTR void rpmInerrupt(void)
+#ifdef ESP8266
+IRAM_ATTR 
+#endif
+void rpmInerrupt(void)
 {
   countTicks++;
 }
 
 void sendRpm()
 {
-  if (measureState == MEASURE_WAIT) {
+  if (measureState == measureWait) {
     return;
   }
 
@@ -375,23 +421,23 @@ void parseRequest(char *inData) {
   } else if (checkCommand(inData, (char *)"2")) {
     sendSettings();
   } else if (checkCommand(inData, (char *)"3")) {
-    measureState = MEASURE_START;
-    scale.set_scale();                                          // выполняем измерение значения без калибровочного коэффициента
-    scale.tare();                                               // сбрасываем значения веса на датчике в 0
-    scale.set_scale(eeprom_data.calibrationFactor);                        // устанавливаем калибровочный коэффициент
+    measureState = measureStart;
+    scale.set_scale();                                          
+    scale.tare();                                               
+    scale.set_scale(eeprom_data.calibrationFactor);             
     attachInterrupt(digitalPinToInterrupt(SPEED_PIN), rpmInerrupt, RISING);
-    measureTick.attach(0.5, getMeasure);
   } else if (checkCommand(inData, (char *)"4")) {
     detachInterrupt(SPEED_PIN);
-    measureState = MEASURE_WAIT;
-    measureTick.detach();
+    measureState = measureWait;
     responseTo->println(F("$4"));
   } else if (checkCommand(inData, (char *)"5")) {
     updateWifiSSId(inData);
   } else if (checkCommand(inData, (char *)"6")) {
     updateWifiPassword(inData);
   } else if (checkCommand(inData, (char *)"7")) {
+    #ifdef ESP8266
     ESP.restart();
+    #endif
   } else if (checkCommand(inData, (char *)"8")) {
     sendIp();
   } else if (checkCommand(inData, (char *)"9")) {
@@ -432,11 +478,12 @@ void setup() {
   Serial.print("Wifi password: ");
   Serial.println(eeprom_data.STApass);
   
+  #ifdef USE_WIFI
   // Begin WiFi
   WiFi.mode(WIFI_STA);
   WiFi.hostname("Trust meter");
   WiFi.begin(eeprom_data.STAssid, eeprom_data.STApass);
- 
+
   // Connecting to WiFi...
   Serial.print("Connecting to ");
   Serial.print(eeprom_data.STAssid);
@@ -461,6 +508,7 @@ void setup() {
     sendIp();
   }
   wifiServer.begin();
+  #endif
 
   ESC.attach(ESC_PIN, eeprom_data.minThrottle, eeprom_data.maxThrottle);
   ESC.write(throttle);
@@ -476,24 +524,27 @@ void setup() {
 }
 
 void loop() {
+  #ifdef USE_WIFI
   ArduinoOTA.handle();
   WiFiClient client = wifiServer.available();
  
   if (client) {
     while (client.connected()) {
       sendRpm();
+      getMeasure();
       while (client.available()>0) {
         responseTo = &client;
         char inData[20]{'\0'};
         client.readBytesUntil('\n', inData, 20);
         parseRequest(inData);
       }
-      delay(10);
+      // delay(10);
     }
     responseTo = &Serial;
     client.stop();
     // Serial.println("Client disconnected");
   }
+  #endif
 
   if (Serial.available() > 0) {
       responseTo = &Serial;
@@ -502,4 +553,5 @@ void loop() {
       parseRequest(inData);
   }
   sendRpm();
+  getMeasure();
 }
