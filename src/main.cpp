@@ -24,8 +24,8 @@ Stream *responseTo = &Serial;
 // Scale Settings
 const uint8_t DEFAULT_CALIBRATE_FACTOR = 1;
 #ifdef MEGA2560
-const uint8_t LOADCELL_DOUT_PIN = DD3;
-const uint8_t LOADCELL_SCK_PIN = DD4;
+const uint8_t LOADCELL_DOUT_PIN = 3;
+const uint8_t LOADCELL_SCK_PIN = 4;
 #else
 const uint8_t LOADCELL_DOUT_PIN = D3;
 const uint8_t LOADCELL_SCK_PIN = D4;
@@ -40,8 +40,8 @@ const uint16_t measureDelay = 500;
 const uint16_t MIN_THROTTLE = 1000;
 const uint16_t MAX_THROTTLE = 2000;
 #ifdef MEGA2560
-const uint8_t SPEED_PIN = DD1;
-const uint8_t ESC_PIN = DD2;
+const uint8_t SPEED_PIN = 1;
+const uint8_t ESC_PIN = 2;
 #else
 const uint8_t SPEED_PIN = D1;
 const uint8_t ESC_PIN = D2;
