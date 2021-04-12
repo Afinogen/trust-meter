@@ -6,6 +6,7 @@
 //Расскомендировать если компилируется через arduino ide и нужен wifi
 //#define USE_WIFI 1
 //#define ESP8266 1
+//#define ATMEGA 1
 
 #ifdef USE_WIFI
 #include <ESP8266WiFi.h>
@@ -23,7 +24,7 @@ Stream *responseTo = &Serial;
 
 // Scale Settings
 const uint8_t DEFAULT_CALIBRATE_FACTOR = 1;
-#ifdef MEGA2560
+#ifdef ATMEGA
 const uint8_t LOADCELL_DOUT_PIN = 3;
 const uint8_t LOADCELL_SCK_PIN = 4;
 #else
@@ -39,7 +40,7 @@ const uint16_t measureDelay = 500;
 //ESC settings
 const uint16_t MIN_THROTTLE = 1000;
 const uint16_t MAX_THROTTLE = 2000;
-#ifdef MEGA2560
+#ifdef ATMEGA
 const uint8_t SPEED_PIN = 1;
 const uint8_t ESC_PIN = 2;
 #else

@@ -36,12 +36,4 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: d1
-        path: .pio/build/d1mini/firmware.bin
-    - uses: actions/upload-artifact@v2
-      with:
-        name: ATmega328P
-        path: .pio/build/d1mini/firmware.bin
-    - uses: actions/upload-artifact@v2
-      with:
-        name: megaatmega2560
-        path: .pio/build/d1mini/firmware.bin
+        path: .pio/build/d1/firmware.bin
