@@ -1,0 +1,47 @@
+name: PlatformIO CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+    - name: Set up Python
+      uses: actions/setup-python@v2
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade platformio
+    - name: Run PlatformIO
+      run: pio run -e d1mini -e d1 -e megaatmega2560 -e ATmega328P
+    - uses: actions/upload-artifact@v2
+      with:
+        name: d1mini
+        path: .pio/build/d1mini/firmware.bin
+    - uses: actions/upload-artifact@v2
+      with:
+        name: d1
+        path: .pio/build/d1mini/firmware.bin
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ATmega328P
+        path: .pio/build/d1mini/firmware.bin
+    - uses: actions/upload-artifact@v2
+      with:
+        name: megaatmega2560
+        path: .pio/build/d1mini/firmware.bin
