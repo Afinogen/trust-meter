@@ -1,22 +1,22 @@
 # Измеритель тяги пропеллеров  
 
 Данное устройство позволяет измерять тягу пропеллеров/двигателей. Себестоимость копейки :)  
-Комплектующие
-d1mini
-https://ali.ski/NLnax
-как у меня - https://ali.ski/Vyts6
+Комплектующие  
+d1mini  
+https://ali.ski/NLnax  
+как у меня - https://ali.ski/Vyts6  
 
-HX711 и тензодатчик
-https://ali.ski/DXF969
+HX711 и тензодатчик  
+https://ali.ski/DXF969  
 
-Для получение RPM берем любой самолетный регулятор, на нем легче подпаятся и схема и них у всех одинаковая.
+Для получение RPM берем любой самолетный регулятор, на нем легче подпаятся и схема и них у всех одинаковая.  
 
-Приложение
-https://github.com/Afinogen/trust-meter-desktop-app
+Приложение  
+https://github.com/Afinogen/trust-meter-desktop-app  
 
-Поддержать проект
-https://paypal.me/afinogen89
-https://yoomoney.ru/to/410012470469439
+Поддержать проект  
+https://paypal.me/afinogen89  
+https://yoomoney.ru/to/410012470469439  
 
 ## Схема подключения
 
