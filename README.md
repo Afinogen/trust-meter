@@ -14,6 +14,10 @@ https://ali.ski/DXF969
 
 Для получение RPM берем любой самолетный регулятор, на нем легче подпаятся и схема и них у всех одинаковая.  
 
+STL файлы  
+[Мотормаунт](docs/motormaunt_2212.stl)  
+[Опора](docs/main.stl)
+
 Приложение  
 https://github.com/Afinogen/trust-meter-desktop-app  
 
