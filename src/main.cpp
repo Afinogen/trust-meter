@@ -2,6 +2,7 @@
 #include "HX711.h"
 #include <EEPROM.h>
 #include <Servo.h>
+#include "ACS712.h"
 
 //Расскомендировать если компилируется через arduino ide и нужен wifi
 //#define USE_WIFI 1
@@ -13,7 +14,7 @@
 #include <ArduinoOTA.h>
 #endif
 
-#define VERSION "0.0.1"
+#define VERSION "0.0.2"
 #define STRING_DELIMITER F(";")
 const uint8_t MAX_REQUEST_LEN = 20;
 #define STA_SSID_DEFAULT "CLIENTSSID"
@@ -21,6 +22,10 @@ const uint8_t MAX_REQUEST_LEN = 20;
 
 
 Stream *responseTo = &Serial;
+
+//Current sesnsor settings
+//Указан 20 амперный, нужно указать свой - ACS712_05B, ACS712_20A, ACS712_30A
+ACS712 currentSensor(ACS712_20A, A0);
 
 // Scale Settings
 const uint8_t DEFAULT_CALIBRATE_FACTOR = 1;
@@ -278,13 +283,21 @@ void getMeasure()
 
   if (millis() - measureTimerStart >= measureDelay) {
     float units = scale.get_units();       
-    float grams = units * conversionRate;   
+    float grams = units * conversionRate; 
+
+    float I = currentSensor.getCurrentDC();
+    if (I<0) { 
+      I*=-1;
+    }
+
     String response = F("$3;");                            
     response += grams;
     response += STRING_DELIMITER;
     response += throttle;
     response += STRING_DELIMITER;
     response += rpm;
+    response += STRING_DELIMITER;
+    response += I;
     responseTo->println(response);
     measureTimerStart = millis();
   }
@@ -423,6 +436,7 @@ void parseRequest(char *inData) {
     sendSettings();
   } else if (checkCommand(inData, (char *)"3")) {
     measureState = measureStart;
+    currentSensor.calibrate();
     scale.set_scale();                                          
     scale.tare();                                               
     scale.set_scale(eeprom_data.calibrationFactor);             
